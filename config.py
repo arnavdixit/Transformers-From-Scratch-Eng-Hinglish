@@ -9,7 +9,7 @@ def get_config():
         "d_model" : 512,
         "seq_len" : 350,
         "epochs" : 5,
-        "lr" : 10**-4,
+        "lr" : 10**-5,
         "model_folder" : "weights",
         "model_basename" : "transformer_",
         "preload" : None,

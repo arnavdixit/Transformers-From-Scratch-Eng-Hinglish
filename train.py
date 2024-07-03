@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader, random_split
+from torch.nn.utils import clip_grad_norm_
 
 from datasets import load_dataset
 from tokenizers import Tokenizer
@@ -210,6 +211,8 @@ def train_model(config):
             optimizer.zero_grad()
             
             loss.backward()
+            
+            clip_grad_norm_(model.parameters(), max_norm=1.0)
             
             optimizer.step()
             
