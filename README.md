@@ -1,0 +1,1 @@
+This is my attempt to recreate the famous Attention is All you Need paper with the help of online resources. This is a langauge translation model from English to Hinglish (an amalgamation of English and Hindi commonly spoken in North India).
