@@ -24,7 +24,7 @@ class PositionalEncoding(nn.Module):
         pe = torch.zeros(seq_len, d_model) # (seq_len, d_model)
         pos = torch.arange(0, seq_len, dtype=torch.float).unsqueeze(1) # (seq_len, 1)
         
-        div_term = torch.exp(torch.arange(0, d_model, 2)).float() * (-math.log(10000.0/d_model))
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
         
         pe[:, 0::2] = torch.sin(pos * div_term)
         pe[:, 1::2] = torch.cos(pos * div_term)
@@ -34,8 +34,7 @@ class PositionalEncoding(nn.Module):
         self.register_buffer("pe", pe)
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = (x + self.pe[:, :x.shape[1]:])
-        x.detach().requires_grad_(False)
+        x = x + (self.pe[:, :x.shape[1], :]).requires_grad_(False)
         return self.dropout(x)
     
 class LayerNormalization(nn.Module):
@@ -71,11 +70,11 @@ class MultiHeadedAttentionBlock(nn.Module):
         self.d_k = d_model // h
         
         
-        self.w_k = nn.Linear(d_model, d_model) # (d_model * d_model)
-        self.w_q = nn.Linear(d_model, d_model) # (d_model * d_model)
-        self.w_v = nn.Linear(d_model, d_model) # (d_model * d_model)
-        self.w_v = nn.Linear(d_model, d_model) # (d_model * d_model)
-        self.w_o = nn.Linear(d_model, d_model) # (d_model * d_model)
+        self.w_k = nn.Linear(d_model, d_model, bias = False) # (d_model * d_model)
+        self.w_q = nn.Linear(d_model, d_model, bias = False) # (d_model * d_model)
+        self.w_v = nn.Linear(d_model, d_model, bias = False) # (d_model * d_model)
+        self.w_v = nn.Linear(d_model, d_model, bias = False) # (d_model * d_model)
+        self.w_o = nn.Linear(d_model, d_model, bias = False) # (d_model * d_model)
         self.dropout = nn.Dropout(dropout)
         
         
@@ -86,7 +85,8 @@ class MultiHeadedAttentionBlock(nn.Module):
         # (batch, seq_len, h, d_k) --> (batch, h, seq_len, seq_len)    
         attention_scores = (query @ key.transpose(-2, -1)) / math.sqrt(d_k)
         if mask is not None:
-            attention_scores.masked_fill(mask == 0, -1e-9)
+            attention_scores.masked_fill_(mask == 0, -1e-9)
+        attention_scores = attention_scores.softmax(dim = -1)
         if dropout is not None:
             attention_scores = dropout(attention_scores)
 
@@ -123,7 +123,6 @@ class EncoderBlock(nn.Module):
         super().__init__()
         self.self_attention_block = self_attention_block
         self.feed_forward_block = feed_forward_block
-        self.norm = LayerNormalization(features)
         self.residual_connections = nn.ModuleList([ResidualConnection(features, dropout) for _ in range(2)])
         
     def forward(self, x, src_mask):
@@ -176,7 +175,7 @@ class ProjectionLayer(nn.Module):
     
     def forward(self, x):
         # (batch, seq_len, d_model) --> (batch, seq_len, vocab_size)
-        return torch.nn.functional.log_softmax(self.proj_layer(x))
+        return self.proj_layer(x)
     
 class Transformer(nn.Module):
     def __init__(self, encoder: Encoder, decoder: Decoder, src_embedding: InputEmbedding, tgt_embedding: InputEmbedding, src_pos: PositionalEncoding,

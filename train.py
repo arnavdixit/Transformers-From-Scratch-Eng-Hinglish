@@ -38,7 +38,6 @@ def greedy_decode(model, src, src_mask, tokenizer_src, tokeinzer_tgt, max_len, d
         out = model.decode(encoder_output, src_mask, decoder_input, decoder_mask)
         prob = model.project(out[:, -1])
         _, next_word = torch.max(prob, dim = 1)
-        
         decoder_input = torch.cat(
             [decoder_input, torch.empty(1,1).type_as(src).fill_(next_word.item()).to(device)],
             dim = 1
@@ -142,7 +141,7 @@ def get_ds(config):
     
     for item in ds_raw:
         src_ids = tokenizer_src.encode(item['translation'][config['src_lang']]).ids
-        tgt_ids = tokenizer_tgt.encode(item['translation'][config['tgt_lang']])
+        tgt_ids = tokenizer_tgt.encode(item['translation'][config['tgt_lang']]).ids
         max_src_len = max(max_src_len, len(src_ids))
         max_tgt_len = max(max_tgt_len, len(tgt_ids))
 
@@ -169,7 +168,7 @@ def train_model(config):
     
     writer = SummaryWriter(config['experiment_name'])
     
-    optimizer = torch.optim.Adam(model.parameters(), lr = config['lr'], eps = 1e-8)
+    optimizer = torch.optim.Adam(model.parameters(), lr = config['lr'], eps = 1e-9)
     
     initial_epoch = 0
     global_step = 0
@@ -202,6 +201,7 @@ def train_model(config):
             projection_layer = model.proj_layer(decoder_output) # (batch, seq_len, tgt_vocab_size)
             
             loss = loss_fn(projection_layer.view(-1, tokenizer_tgt.get_vocab_size()), label.view(-1))
+            assert not torch.isnan(loss).any(), "Loss contains NaNs"
             batch_iterator.set_postfix({"loss": f"{loss.item():6.3f}"})
             
             writer.add_scalar("train_loss", loss)
@@ -216,7 +216,7 @@ def train_model(config):
             global_step += 1
         
         run_validation(model, valid_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_iterator.write(msg),
-                    global_step, writer)
+                global_step, writer)
             
         model_filename = get_weights_file_path(config, f"{epoch:02d}")
             
