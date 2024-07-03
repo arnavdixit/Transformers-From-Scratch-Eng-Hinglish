@@ -3,7 +3,6 @@ from pathlib import Path
 def get_config():
     return {
         "datasource" : "findnitai/english-to-hinglish",
-        "main_exp" : "attention",
         "src_lang" : "en",
         "tgt_lang" : "hi_ng",
         "batch_size" : 8,
@@ -19,12 +18,12 @@ def get_config():
     }
     
 def get_weights_file_path(config, epoch: str):
-    model_folder = f"{config['main_exp']}_{config['model_folder']}"
+    model_folder = f"{config['model_folder']}"
     model_filename = f"{config['model_basename']}{epoch}.pt"
     return str(Path('.') / model_folder / model_filename)
 
 def get_latest_weights_file_path(config):
-    model_folder = f"{config['main_exp']}_{config['model_folder']}"
+    model_folder = f"{config['model_folder']}"
     model_filename = f"{config['model_basename']}*"
     weights_files = list(Path(model_folder).glob(model_filename))
     if len(weights_files) == 0:
