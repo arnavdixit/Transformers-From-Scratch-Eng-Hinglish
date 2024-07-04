@@ -173,7 +173,7 @@ def train_model(config):
     writer = SummaryWriter(config['experiment_name'])
     
     optimizer = torch.optim.Adam(model.parameters(), lr = config['lr'], betas = (0.9, 0.98), eps = 1e-9)
-    scheduler = StepLR(optimizer, step_size = 5, gamma = 0.5)
+    scheduler = StepLR(optimizer, step_size = config['lr_step_size'], gamma = config['step_gamma'])
     
     initial_epoch = 0
     global_step = 0
@@ -214,7 +214,7 @@ def train_model(config):
             
             loss.backward()
             
-            clip_grad_norm_(model.parameters(), max_norm=1.0)
+            #clip_grad_norm_(model.parameters(), max_norm = config['max_norm'])
             
             optimizer.step()
             optimizer.zero_grad(set_to_none = True)
