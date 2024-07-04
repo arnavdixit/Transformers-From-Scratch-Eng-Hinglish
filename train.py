@@ -3,6 +3,8 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader, random_split
 from torch.nn.utils import clip_grad_norm_
 
+from transformers import get_linear_schedule_with_warmup
+
 from datasets import load_dataset
 from tokenizers import Tokenizer
 from tokenizers.models import BPE
@@ -170,6 +172,9 @@ def train_model(config):
     writer = SummaryWriter(config['experiment_name'])
     
     optimizer = torch.optim.Adam(model.parameters(), lr = config['lr'], eps = 1e-9)
+    total_steps = len(train_dataloader) * config['epochs']
+    warmup_steps = int(0.1 * total_steps)
+    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps, num_training_steps=total_steps)
     
     initial_epoch = 0
     global_step = 0
@@ -215,6 +220,7 @@ def train_model(config):
             clip_grad_norm_(model.parameters(), max_norm=1.0)
             
             optimizer.step()
+            scheduler.step()
             
             global_step += 1
         
