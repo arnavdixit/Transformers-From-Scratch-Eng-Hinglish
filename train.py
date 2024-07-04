@@ -214,7 +214,7 @@ def train_model(config):
             
             loss.backward()
             
-            #clip_grad_norm_(model.parameters(), max_norm = config['max_norm'])
+            clip_grad_norm_(model.parameters(), max_norm = config['max_norm'])
             
             optimizer.step()
             optimizer.zero_grad(set_to_none = True)
