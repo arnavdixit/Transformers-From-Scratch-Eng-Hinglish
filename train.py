@@ -2,8 +2,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader, random_split
 from torch.nn.utils import clip_grad_norm_
-
-from transformers import get_linear_schedule_with_warmup
+from torch.optim.lr_scheduler import StepLR
 
 from datasets import load_dataset
 from tokenizers import Tokenizer
@@ -13,7 +12,9 @@ from tokenizers.pre_tokenizers import Whitespace
 
 from torch.utils.tensorboard import SummaryWriter
 
-import torchmetrics
+from torchmetrics.text import CharErrorRate
+from torchmetrics.text import WordErrorRate
+from torchmetrics.text import BLEUScore
 
 from dataset import BilingualDataset, causal_mask
 
@@ -88,19 +89,19 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
             
         if writer:
             
-            metric = torchmetrics.CharErrorRate()
+            metric = CharErrorRate()
             cer = metric(predicted_text, truth_text)
             writer.add_scalar('validation cer', cer, global_step)
             writer.flush()
 
             # Compute the word error rate
-            metric = torchmetrics.WordErrorRate()
+            metric = WordErrorRate()
             wer = metric(predicted_text, truth_text)
             writer.add_scalar('validation wer', wer, global_step)
             writer.flush()
 
             # Compute the BLEU metric
-            metric = torchmetrics.BLEUScore()
+            metric = BLEUScore()
             bleu = metric(predicted_text, truth_text)
             writer.add_scalar('validation BLEU', bleu, global_step)
             writer.flush()
@@ -171,10 +172,8 @@ def train_model(config):
     
     writer = SummaryWriter(config['experiment_name'])
     
-    optimizer = torch.optim.Adam(model.parameters(), lr = config['lr'], eps = 1e-9)
-    total_steps = len(train_dataloader) * config['epochs']
-    warmup_steps = int(0.1 * total_steps)
-    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps, num_training_steps=total_steps)
+    optimizer = torch.optim.Adam(model.parameters(), lr = config['lr'], betas = (0.9, 0.98), eps = 1e-9)
+    scheduler = StepLR(optimizer, step_size = 5, gamma = 0.5)
     
     initial_epoch = 0
     global_step = 0
@@ -213,17 +212,16 @@ def train_model(config):
             writer.add_scalar("train_loss", loss)
             writer.flush()
             
-            optimizer.zero_grad()
-            
             loss.backward()
             
             clip_grad_norm_(model.parameters(), max_norm=1.0)
             
             optimizer.step()
-            scheduler.step()
+            optimizer.zero_grad(set_to_none = True)
             
             global_step += 1
-        
+            
+        scheduler.step()
         run_validation(model, valid_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_iterator.write(msg),
                 global_step, writer)
             
