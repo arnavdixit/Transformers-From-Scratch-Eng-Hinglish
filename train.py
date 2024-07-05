@@ -172,7 +172,7 @@ def train_model(config):
     
     writer = SummaryWriter(config['experiment_name'])
     
-    optimizer = torch.optim.Adam(model.parameters(), lr = config['lr'], betas = (0.9, 0.98), eps = 1e-9)
+    optimizer = torch.optim.AdamW(model.parameters(), lr = config['lr'], eps = 1e-9)
     scheduler = StepLR(optimizer, step_size = config['lr_step_size'], gamma = config['step_gamma'])
     
     initial_epoch = 0
